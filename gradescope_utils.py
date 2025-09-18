@@ -2,6 +2,7 @@ import os
 import requests
 import random
 import time
+from datetime import datetime
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
@@ -10,6 +11,7 @@ load_dotenv()
 GRADESCOPE_EMAIL = os.getenv("GRADESCOPE_EMAIL")
 GRADESCOPE_PASSWORD = os.getenv("GRADESCOPE_PASSWORD")
 GRADESCOPE_COURSE_URL = os.getenv("GRADESCOPE_COURSE_URL")
+COURSE_ID = os.getenv("COURSE_ID")
 
 HEADERS = {
     "User-Agent": (
@@ -50,13 +52,21 @@ def get_assignments():
     
     # with open("page.html", "w", encoding="utf-8") as file:
     #    file.write(str(soup))
-    
+
+    # with open("page.html") as fp:
+    #    soup = BeautifulSoup(fp, 'html.parser')
+        
     num = 0
     assignments = []
     for row in soup.select("td.hidden-column"):
-        title = f"Assignment {num // 2 + 1}"
+        title = f"{COURSE_ID}: Homework {num // 2 + 1}"
         due = row.get_text(strip=True)
-        assignments.append({"title": title, "due": due})
+        dt = datetime.strptime(due, "%Y-%m-%d %H:%M:%S %z")
+        assignments.append({"title": title, "due": dt.isoformat()})
         num += 1
 
     return(assignments[1::2])
+
+# deadlines = get_assignments()
+# for d in deadlines:
+#    print(d)
