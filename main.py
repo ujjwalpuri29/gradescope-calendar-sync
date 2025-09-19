@@ -5,23 +5,24 @@ from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 
 from google_utils import get_flow, save_credentials, load_credentials, event_exists, TIMEZONE
-from gradescope_utils import gs_login, get_assignments
+from gradescope_utils import get_assignments
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1' # remove in prod
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1' # Only for localhost (remove in prod)
 
 app = FastAPI()
 
 @app.get("/")
 async def home():
-    return HTMLResponse("""
+    return HTMLResponse(F"""
     <body style="font-family:sans-serif;text-align:center;margin-top:50px;">
         <h1 style="text-align:center;margin:auto">Gradescope sync for Google Calendar</h1>
-        <a href="/auth" style="display:inline-block;margin-top:20px;
+        <a href="/sync" style="display:inline-block;margin-top:20px;
             padding:10px 20px;background:#4285F4;color:white;
-            text-decoration:none;border-radius:5px;">Authorize with Google
+            text-decoration:none;border-radius:5px;">Sync Now
         </a>
     </body>
-    """)
+    """
+    )
 
 @app.get("/auth")
 async def auth_google():
@@ -29,7 +30,7 @@ async def auth_google():
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
-        prompt="consent"
+        prompt="consent",
     )
     return RedirectResponse(auth_url)
 
@@ -45,12 +46,11 @@ async def oauth2callback(request: Request):
 async def gradescope_sync():
     creds = load_credentials()
     if not creds:
-        return {"error": "Not authorized yet."}
+        return RedirectResponse("/auth")
+    
     service = service = build("calendar", "v3", credentials=creds)
     
-    gs_login()
     assignments = get_assignments()
-    
     created_events = []
     
     for a in assignments:
@@ -85,11 +85,11 @@ async def gradescope_sync():
             f"<li><a href='{created.get('htmlLink')}' target='_blank'>{a['title']}</a> (due {a['due'][:10]} {a['due'][11:16]})</li>"
         )
         
-    print(created_events)
+    # print(created_events)
 
     if not created_events:
         return HTMLResponse("""
-        <h2 style="text-align:center;margin-top:50px;">
+        <h2 style="font-family:sans-serif;text-align:center;margin-top:50px;">
             No new events created (all assignments already synced)
         </h2>
         """
@@ -98,7 +98,7 @@ async def gradescope_sync():
     return HTMLResponse(f"""
     <html>
     <head><title>Sync Complete</title></head>
-    <body style="text-align:center;margin-top:50px;">
+    <body style="font-family:sans-serif;text-align:center;margin-top:50px;">
         <h1>✅ Gradescope Deadlines Synced</h1>
         <ul style="list-style:none;padding:0;">
             {''.join(created_events)}
